@@ -59,7 +59,8 @@ public:
 		{
 			// Collision info can be retrieved using the event pointer
 			//EventPhysCollision *physCollision = reinterpret_cast<EventPhysCollision *>(event.ptr);
-
+			EventPhysCollision *pCollision = reinterpret_cast<EventPhysCollision*>(event.nParam[0]);
+			CryLog("collision, %i", pCollision->idCollider);
 			// Queue removal of this entity, unless it has already been done
 			//gEnv->pEntitySystem->RemoveEntity(GetEntityId());
 		}
