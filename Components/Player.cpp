@@ -41,6 +41,7 @@ void CPlayerComponent::Initialize()
 	m_crouchWalkFragmentId = m_pAnimationComponent->GetFragmentId("CrouchWalk");
 	m_walkWithWeaponId = m_pAnimationComponent->GetFragmentId("WeaponMove");
 	m_idleWithWeaponId = m_pAnimationComponent->GetFragmentId("WeaponIdle");
+	m_stoneThrowId = m_pAnimationComponent->GetFragmentId("StoneThrow");
 	m_rotateTagId = m_pAnimationComponent->GetTagId("Rotate");
 
 	// Get the input component, wraps access to action mapping so we can easily get callbacks when inputs are triggered
@@ -142,6 +143,16 @@ void CPlayerComponent::Initialize()
 	// Bind the shoot action to left mouse click
 	m_pInputComponent->BindAction("player", "shoot", eAID_KeyboardMouse, EKeyId::eKI_Mouse1);
 
+	m_pInputComponent->RegisterAction("player", "StoneThrow", [this](int activationMode, float value)
+	{
+		if (activationMode == eIS_Pressed)
+		{
+			m_State = ePS_Interuptable;
+			m_throwAnim = true;
+		}
+	});
+	m_pInputComponent->BindAction("player", "StoneThrow", eAID_KeyboardMouse, EKeyId::eKI_G);
+
 	m_State = ePS_Standing;
 	m_crouchPress = false;
 	m_moving = false;
@@ -149,13 +160,22 @@ void CPlayerComponent::Initialize()
 	m_crouchPhys = false;
 	m_canStand = true;
 	m_isWeaponDrawn = false;
+	m_gruntThrow = CryAudio::StringToId("grunt_throw");
+
+	if (ICharacterInstance *pCharacter = m_pAnimationComponent->GetCharacter())
+	{
+		auto *pBarrelOutAttachment = pCharacter->GetIAttachmentManager()->GetInterfaceByName("weapon");
+		pBarrelOutAttachment->HideAttachment(1);
+		auto *pStoneAttachment = pCharacter->GetIAttachmentManager()->GetInterfaceByName("stone");
+		pStoneAttachment->HideAttachment(1);
+	}
 
 	Revive();
 }
 
 uint64 CPlayerComponent::GetEventMask() const
 {
-	return BIT64(ENTITY_EVENT_START_GAME) | BIT64(ENTITY_EVENT_UPDATE);
+	return BIT64(ENTITY_EVENT_START_GAME) | BIT64(ENTITY_EVENT_UPDATE) | BIT64(ENTITY_EVENT_ANIM_EVENT);
 }
 
 void CPlayerComponent::ProcessEvent(SEntityEvent& event)
@@ -168,6 +188,66 @@ void CPlayerComponent::ProcessEvent(SEntityEvent& event)
 		Revive();
 	}
 	break;
+	
+	case ENTITY_EVENT_ANIM_EVENT:
+	{	
+		const AnimEventInstance* pAnimEvent = reinterpret_cast<const AnimEventInstance*>(event.nParam[0]);
+
+		if (pAnimEvent)
+		{
+			if (pAnimEvent->m_EventName && stricmp(pAnimEvent->m_EventName, "throw") == 0)
+			{
+				PlayThrowSound();
+				CryLog("throw event");
+				if (ICharacterInstance *pCharacter = m_pAnimationComponent->GetCharacter())
+				{
+					auto *pStoneAttachment = pCharacter->GetIAttachmentManager()->GetInterfaceByName("stone");
+					pStoneAttachment->HideAttachment(1);
+
+					if (pStoneAttachment != nullptr)
+					{
+						Vec3 dir = GetEntity()->GetWorldRotation().GetColumn1();
+						CryLog("bullet direction %f, %f, %f", dir.x, dir.y, dir.z);
+
+						Vec3 stoneOrigin = pStoneAttachment->GetAttWorldAbsolute().GetColumn3();
+						CryLog("bulletorigin %f, %f, %f", stoneOrigin.x, stoneOrigin.y, stoneOrigin.z);
+
+						SEntitySpawnParams spawnParams;
+						spawnParams.vPosition = stoneOrigin;
+						const float bulletScale = 0.1f;
+						spawnParams.vScale = Vec3(bulletScale);
+
+						// Spawn the entity
+						if (IEntity* pEntity = gEnv->pEntitySystem->SpawnEntity(spawnParams))
+						{
+							// See Bullet.cpp, bullet is propelled in  the rotation and position the entity was spawned with
+							pEntity->CreateComponentClass<CBulletComponent>();
+							// Apply an impulse so that the bullet flies forward
+							if (auto *pPhysics = pEntity->GetPhysics())
+							{
+								pe_action_impulse impulseAction;
+
+								const float initialVelocity = 50.f;
+								// Set the actual impulse, in this cause the value of the initial velocity CVar in bullet's forward direction
+								impulseAction.impulse = dir * initialVelocity;
+
+								// Send to the physical entity
+								pPhysics->Action(&impulseAction);
+							}
+						}
+					}
+
+				}
+				
+			}
+			if (pAnimEvent->m_EventName && stricmp(pAnimEvent->m_EventName, "throwEnd") == 0)
+			{
+				m_throwAnim = false;
+				CryLog("throw event ended");
+			}
+		}
+	}
+		break;
 	case ENTITY_EVENT_UPDATE:
 	{
 		SEntityUpdateContext* pCtx = (SEntityUpdateContext*)event.nParam[0];
@@ -196,6 +276,14 @@ void CPlayerComponent::ProcessEvent(SEntityEvent& event)
 		}
 		switch (m_State)
 		{
+		case EPlayerState::ePS_Interuptable:
+			pPD->AddText(10.0f, 50.0f, 2.0f, ColorF(Vec3(0, 1, 0), 0.5f), 1.0f, "throwing stone");
+			if (!m_throwAnim)
+			{
+				m_State = EPlayerState::ePS_Standing;
+			}
+
+			break;
 		case EPlayerState::ePS_Standing:
 			pPD->AddText(10.0f, 50.0f, 2.0f, ColorF(Vec3(0, 1, 0), 0.5f), 1.0f, "standing");
 			if (m_moving)
@@ -473,7 +561,7 @@ void CPlayerComponent::UpdateMovementRequest(float frameTime)
 		m_isWeaponDrawn = false;
 	}
 
-	if (m_inputFlags & (TInputFlags)EInputFlag::MoveLeft)
+	if (m_inputFlags & (TInputFlags)EInputFlag::MoveLeft && m_State != EPlayerState::ePS_Interuptable)
 	{
 		m_moving = true;
 		if (m_crouchPress)
@@ -486,7 +574,7 @@ void CPlayerComponent::UpdateMovementRequest(float frameTime)
 			
 		}
 	}
-	if (m_inputFlags & (TInputFlags)EInputFlag::MoveRight)
+	if (m_inputFlags & (TInputFlags)EInputFlag::MoveRight && m_State != EPlayerState::ePS_Interuptable)
 	{
 		m_moving = true;
 		if (m_crouchPress)
@@ -498,7 +586,7 @@ void CPlayerComponent::UpdateMovementRequest(float frameTime)
 			velocity.x += moveSpeed * frameTime;
 		}
 	}
-	if (m_inputFlags & (TInputFlags)EInputFlag::MoveForward)
+	if (m_inputFlags & (TInputFlags)EInputFlag::MoveForward && m_State != EPlayerState::ePS_Interuptable)
 	{
 		m_moving = true;
 		if (m_crouchPress)
@@ -510,7 +598,7 @@ void CPlayerComponent::UpdateMovementRequest(float frameTime)
 			velocity.y += moveSpeed * frameTime;
 		}
 	}
-	if (m_inputFlags & (TInputFlags)EInputFlag::MoveBack)
+	if (m_inputFlags & (TInputFlags)EInputFlag::MoveBack && m_State != EPlayerState::ePS_Interuptable)
 	{
 		m_moving = true;
 		if (m_crouchPress)
@@ -594,6 +682,9 @@ void CPlayerComponent::UpdateAnimation(float frameTime)
 			break;
 		case ePS_WeaponIdle:
 			m_desiredFragmentId = m_idleWithWeaponId;
+			break;
+		case ePS_Interuptable:
+			m_desiredFragmentId = m_stoneThrowId;
 			break;
 		default:
 			break;
@@ -827,6 +918,14 @@ void CPlayerComponent::PhysicalizeCrouch()
 	physParams.pPlayerDynamics = &playerDynamics;
 
 	GetEntity()->Physicalize(physParams);
+}
+
+void CPlayerComponent::PlayThrowSound()
+{
+	CryLog("grunt throw sound play");
+
+	CryAudio::SExecuteTriggerData const data("throw", CryAudio::EOcclusionType::Ignore, GetEntity()->GetWorldPos(), true, m_gruntThrow);
+	gEnv->pAudioSystem->ExecuteTriggerEx(data);
 }
 
 void CPlayerComponent::ShootRayFromHead()

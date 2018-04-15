@@ -26,6 +26,7 @@ enum EPlayerState
 	ePS_Jumping,
 	ePS_WeaponMove,
 	ePS_WeaponIdle,
+	ePS_Interuptable,
 	ePS_Last
 };
 
@@ -125,6 +126,7 @@ public:
 	void Physicalize();
 	void PhysicalizeCrouch();
 
+	void PlayThrowSound();
 	//raycasting
 	void ShootRayFromHead();
 	void RayCast(Vec3 origin, Quat dir, IEntity & pSkipEntity);
@@ -153,6 +155,7 @@ protected:
 	FragmentID m_crouchWalkFragmentId;
 	FragmentID m_walkWithWeaponId;
 	FragmentID m_idleWithWeaponId;
+	FragmentID m_stoneThrowId;
 	TagID m_rotateTagId;
 
 	TInputFlags m_inputFlags;
@@ -180,4 +183,6 @@ protected:
 	float viewOffsetUp = 2.f;
 	const char* pClassName = "";
 
+	bool m_throwAnim;
+	CryAudio::ControlId m_gruntThrow;
 };
