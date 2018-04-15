@@ -872,10 +872,7 @@ void CPlayerComponent::ShootRayFromHead()
 			pPD->AddText(10.0f, 20.0f, 2.0f, ColorF(Vec3(0, 1, 0), 0.5f), 1.0f, "can stand");
 		else
 			pPD->AddText(10.0f, 20.0f, 2.0f, ColorF(Vec3(0, 1, 0), 0.5f), 1.0f, "can't stand");
-		//pPD->AddText(10.0f, 10.0f, 2.0f, ColorF(Vec3(0, 1, 0), 0.5f), 1.0f, m_pPlayer->m_State);
-		//pPD->AddText()
-		//m_CamPos = hit.pt;
-		//pPD->AddLine(pos, pos + dir, ColorF(Vec3(1.0f, 0.0f, 0.0f), 0.75f), 1.0f);
+
 	}
 }
 
