@@ -13,6 +13,8 @@
 #include <DefaultComponents/Geometry/AdvancedAnimationComponent.h>
 #include <DefaultComponents/Input/InputComponent.h>
 
+#include "../Attachments/Torch.h"
+
 ////////////////////////////////////////////////////////
 // Represents a player participating in gameplay
 ////////////////////////////////////////////////////////
@@ -131,6 +133,11 @@ public:
 	void ShootRayFromHead();
 	void RayCast(Vec3 origin, Quat dir, IEntity & pSkipEntity);
 
+	void InitializeInput();
+	void InitializeUpdate(EPlayerState state, float frameTime);
+	void InitializeMovement(float frameTime);
+	void InitializeAttachements();
+
 protected:
 	void UpdateMovementRequest(float frameTime);
 	void UpdateLookDirectionRequest(float frameTime);
@@ -185,4 +192,7 @@ protected:
 
 	bool m_throwAnim;
 	CryAudio::ControlId m_gruntThrow;
+
+	CTorchComponent* pTorch;
+	IEntity* pTorchEntity;
 };

@@ -47,111 +47,8 @@ void CPlayerComponent::Initialize()
 	// Get the input component, wraps access to action mapping so we can easily get callbacks when inputs are triggered
 	m_pInputComponent = m_pEntity->GetOrCreateComponent<Cry::DefaultComponents::CInputComponent>();
 
-	// Register an action, and the callback that will be sent when it's triggered
-	m_pInputComponent->RegisterAction("player", "moveleft", [this](int activationMode, float value) { HandleInputFlagChange((TInputFlags)EInputFlag::MoveLeft, activationMode);  });
-	// Bind the 'A' key the "moveleft" action
-	m_pInputComponent->BindAction("player", "moveleft", eAID_KeyboardMouse,	EKeyId::eKI_A);
-
-	m_pInputComponent->RegisterAction("player", "moveright", [this](int activationMode, float value) { HandleInputFlagChange((TInputFlags)EInputFlag::MoveRight, activationMode);  });
-	m_pInputComponent->BindAction("player", "moveright", eAID_KeyboardMouse, EKeyId::eKI_D);
-
-	m_pInputComponent->RegisterAction("player", "moveforward", [this](int activationMode, float value) { HandleInputFlagChange((TInputFlags)EInputFlag::MoveForward, activationMode);  });
-	m_pInputComponent->BindAction("player", "moveforward", eAID_KeyboardMouse, EKeyId::eKI_W);
-
-	m_pInputComponent->RegisterAction("player", "moveback", [this](int activationMode, float value) { HandleInputFlagChange((TInputFlags)EInputFlag::MoveBack, activationMode);  });
-	m_pInputComponent->BindAction("player", "moveback", eAID_KeyboardMouse, EKeyId::eKI_S);
-
-	//crouching
-	m_pInputComponent->RegisterAction("player", "crouch", [this](int activationMode, float value) { HandleInputFlagChange((TInputFlags)EInputFlag::Crouch, activationMode);  });
-	m_pInputComponent->BindAction("player", "crouch", eAID_KeyboardMouse, EKeyId::eKI_C);
-
-	//weapon drawn
-	m_pInputComponent->RegisterAction("player", "weapondrawn", [this](int activationMode, float value) { HandleInputFlagChange((TInputFlags)EInputFlag::WeaponDrawn, activationMode);  });
-	m_pInputComponent->BindAction("player", "weapondrawn", eAID_KeyboardMouse, EKeyId::eKI_Mouse2);
-
-	m_pInputComponent->RegisterAction("player", "mouse_rotateyaw", [this](int activationMode, float value) { m_mouseDeltaRotation.x -= value; });
-	m_pInputComponent->BindAction("player", "mouse_rotateyaw", eAID_KeyboardMouse, EKeyId::eKI_MouseX);
-
-	m_pInputComponent->RegisterAction("player", "mouse_rotatepitch", [this](int activationMode, float value) { m_mouseDeltaRotation.y -= value; });
-	m_pInputComponent->BindAction("player", "mouse_rotatepitch", eAID_KeyboardMouse, EKeyId::eKI_MouseY);
-
-	// Register the shoot action
-	m_pInputComponent->RegisterAction("player", "camswitch", [this](int activationMode, float value)
-	{
-		// Only fire on press, not release
-		if (activationMode == eIS_Pressed)
-		{
-			if (m_isFPS)
-			{
-				CryLog("changing to fps %d", m_isFPS);
-				ReviveOnCamChange();
-				m_pAnimationComponent->SetCharacterFile("Objects/Characters/mixamo/pants_guy.cdf");
-				m_pAnimationComponent->LoadFromDisk();
-				m_pAnimationComponent->ResetCharacter();
-
-				m_isFPS = false;
-			}
-			else
-			{
-				CryLog("changing to 3rd  person %i", m_isFPS);
-				ReviveOnCamChange();
-				m_pAnimationComponent->SetCharacterFile("Objects/Characters/mixamo/pants_guy_nohead.cdf");
-				m_pAnimationComponent->LoadFromDisk();
-				m_pAnimationComponent->ResetCharacter();
-				m_isFPS = true;
-			}
-		}
-	});
-
-	// Bind the shoot action to left mouse click
-	m_pInputComponent->BindAction("player", "camswitch", eAID_KeyboardMouse, EKeyId::eKI_Tab);
-
-	// Register the shoot action
-	m_pInputComponent->RegisterAction("player", "shoot", [this](int activationMode, float value)
-	{
-		// Only fire on press, not release
-		if (activationMode == eIS_Pressed && m_isWeaponDrawn == true)
-		{
-			if (ICharacterInstance *pCharacter = m_pAnimationComponent->GetCharacter())
-			{
-				auto *pBarrelOutAttachment = pCharacter->GetIAttachmentManager()->GetInterfaceByName("weapon");
-
-				if (pBarrelOutAttachment != nullptr)
-				{
-					QuatTS bulletOrigin = pBarrelOutAttachment->GetAttWorldAbsolute();
-
-					SEntitySpawnParams spawnParams;
-					spawnParams.pClass = gEnv->pEntitySystem->GetClassRegistry()->GetDefaultClass();
-
-					spawnParams.vPosition = bulletOrigin.t;
-					spawnParams.qRotation = bulletOrigin.q;
-
-					const float bulletScale = 0.05f;
-					spawnParams.vScale = Vec3(bulletScale);
-
-					// Spawn the entity
-					if (IEntity* pEntity = gEnv->pEntitySystem->SpawnEntity(spawnParams))
-					{
-						// See Bullet.cpp, bullet is propelled in  the rotation and position the entity was spawned with
-						pEntity->CreateComponentClass<CBulletComponent>();
-					}
-				}
-			}
-		}
-	});
-
-	// Bind the shoot action to left mouse click
-	m_pInputComponent->BindAction("player", "shoot", eAID_KeyboardMouse, EKeyId::eKI_Mouse1);
-
-	m_pInputComponent->RegisterAction("player", "StoneThrow", [this](int activationMode, float value)
-	{
-		if (activationMode == eIS_Pressed)
-		{
-			m_State = ePS_Interuptable;
-			m_throwAnim = true;
-		}
-	});
-	m_pInputComponent->BindAction("player", "StoneThrow", eAID_KeyboardMouse, EKeyId::eKI_G);
+	InitializeInput();
+	InitializeAttachements();
 
 	m_State = ePS_Standing;
 	m_crouchPress = false;
@@ -267,252 +164,7 @@ void CPlayerComponent::ProcessEvent(SEntityEvent& event)
 
 		ShootRayFromHead();
 
-		IPersistantDebug *pPD = gEnv->pGameFramework->GetIPersistantDebug();
-		if (pPD)
-		{
-			pPD->Begin("InteractionVector", false);
-			pPD->AddText(10.0f, 1.0f, 2.0f, ColorF(Vec3(0, 0, 0), 0.5f), 1.0f, "is crouch button pressed %d", m_crouchPress);
-			pPD->AddText(500.0f, 1.0f, 2.0f, ColorF(Vec3(0, 1, 0), 0.5f), 1.0f, "is moving %d", m_moving);
-		}
-		switch (m_State)
-		{
-		case EPlayerState::ePS_Interuptable:
-			pPD->AddText(10.0f, 50.0f, 2.0f, ColorF(Vec3(0, 1, 0), 0.5f), 1.0f, "throwing stone");
-			if (!m_throwAnim)
-			{
-				m_State = EPlayerState::ePS_Standing;
-			}
-
-			break;
-		case EPlayerState::ePS_Standing:
-			pPD->AddText(10.0f, 50.0f, 2.0f, ColorF(Vec3(0, 1, 0), 0.5f), 1.0f, "standing");
-			if (m_moving)
-			{
-				if (m_isWeaponDrawn)
-				{
-					m_State = EPlayerState::ePS_WeaponMove;
-				}
-				else
-				{
-					if (!m_crouchPress)
-					{
-						if (!m_standPhys)
-							Physicalize();
-						m_State = EPlayerState::ePS_MovingToStanding;
-					}
-					else
-					{
-						if (!m_crouchPhys)
-							PhysicalizeCrouch();
-						m_State = EPlayerState::ePS_MovingToCrouching;
-					}
-				}
-			}
-			else
-			{
-				if (m_isWeaponDrawn)
-				{
-					m_State = EPlayerState::ePS_WeaponIdle;
-				}
-				else
-				{
-					if (!m_crouchPress)
-					{
-						m_State = EPlayerState::ePS_Standing;
-					}
-					else
-					{
-						if (!m_crouchPhys)
-							PhysicalizeCrouch();
-						m_State = EPlayerState::ePS_Crouching;
-					}
-				}
-			}
-			break;
-		case EPlayerState::ePS_Crouching:
-			pPD->AddText(10.0f, 90.0f, 2.0f, ColorF(Vec3(0, 1, 0), 0.5f), 1.0f, "crouching");
-			if (m_moving)
-			{
-				if (m_isWeaponDrawn)
-				{
-					m_State = EPlayerState::ePS_WeaponMove;
-				}
-				else
-				{
-					if (m_crouchPress)
-					{
-						if (!m_crouchPhys)
-							PhysicalizeCrouch();
-						m_State = EPlayerState::ePS_MovingToCrouching;
-					}
-					else
-					{
-						if (!m_canStand)
-						{
-							if (!m_crouchPhys)
-								PhysicalizeCrouch();
-							m_State = EPlayerState::ePS_MovingToCrouching;
-						}
-						else
-						{
-							if (!m_standPhys)
-								Physicalize();
-							m_State = EPlayerState::ePS_MovingToStanding;
-						}
-					}
-				}
-			}
-			else
-			{
-				if (m_isWeaponDrawn)
-				{
-					m_State = EPlayerState::ePS_WeaponIdle;
-				}
-				else
-				{
-					if (!m_crouchPress)
-					{
-						if (m_canStand)
-						{
-							if (!m_standPhys)
-								Physicalize();
-							m_State = EPlayerState::ePS_Standing;
-						}
-						else
-						{
-							if (!m_crouchPhys)
-								PhysicalizeCrouch();
-							m_State = EPlayerState::ePS_Crouching;
-						}
-
-					}
-					else
-					{
-						m_State = EPlayerState::ePS_Crouching;
-					}
-				}
-			}
-			break;
-
-		case EPlayerState::ePS_MovingToStanding:
-			pPD->AddText(10.0f, 110.0f, 2.0f, ColorF(Vec3(0, 1, 0), 0.5f), 1.0f, "standing moving");
-			if (m_moving)
-			{
-
-				if (m_isWeaponDrawn)
-				{
-					m_State = EPlayerState::ePS_WeaponMove;
-				}
-				else
-				{
-					if (m_crouchPress)
-					{
-						if (!m_crouchPhys)
-							PhysicalizeCrouch();
-						m_State = EPlayerState::ePS_MovingToCrouching;
-					}
-				}
-			}
-			else
-			{
-				if (m_isWeaponDrawn)
-				{
-					m_State = EPlayerState::ePS_WeaponIdle;
-				}
-				else
-				{
-					if (!m_crouchPress)
-						m_State = EPlayerState::ePS_Standing;
-					else
-						m_State = EPlayerState::ePS_Crouching;
-				}
-			}
-			break;
-
-		case EPlayerState::ePS_MovingToCrouching:
-			pPD->AddText(10.0f, 130.0f, 2.0f, ColorF(Vec3(0, 1, 0), 0.5f), 1.0f, "crouching moving");
-			if (m_moving)
-			{
-				if (m_isWeaponDrawn)
-				{
-					m_State = EPlayerState::ePS_WeaponMove;
-				}
-				else
-				{
-					if (!m_crouchPress)
-					{
-						if (m_canStand)
-						{
-							if (!m_standPhys)
-								Physicalize();
-							m_State = EPlayerState::ePS_MovingToStanding;
-						}
-						else
-						{
-							if (!m_crouchPhys)
-								PhysicalizeCrouch();
-							m_State = EPlayerState::ePS_MovingToCrouching;
-						}
-
-					}
-				}
-
-			}
-			else
-			{
-				if (m_isWeaponDrawn)
-				{
-					m_State = EPlayerState::ePS_WeaponIdle;
-				}
-				else
-				{
-					if (!m_crouchPress)
-					{
-						if (m_canStand)
-							m_State = EPlayerState::ePS_Standing;
-						else
-							m_State = EPlayerState::ePS_Crouching;
-					}
-					else
-						m_State = EPlayerState::ePS_Crouching;
-				}
-
-			}
-			break;
-		case  EPlayerState::ePS_WeaponMove:
-			if (m_moving)
-			{
-				if (!m_isWeaponDrawn)
-					m_State = EPlayerState::ePS_MovingToStanding;
-			}
-			else
-			{
-				if (!m_isWeaponDrawn)
-					m_State = EPlayerState::ePS_Standing;
-				else
-					m_State = EPlayerState::ePS_WeaponIdle;
-			}
-			break;
-		case EPlayerState::ePS_WeaponIdle:
-			if (m_moving)
-			{
-				if (!m_isWeaponDrawn)
-				{
-					m_State = EPlayerState::ePS_MovingToStanding;
-				}
-				else
-				{
-					m_State = EPlayerState::ePS_WeaponMove;
-				}
-			}
-			else
-			{
-				if (!m_isWeaponDrawn)
-					m_State = EPlayerState::ePS_Standing;
-			}
-		default:
-			break;
-		}
+		InitializeUpdate(m_State, pCtx->fFrameTime);
 
 
 	}
@@ -520,98 +172,42 @@ void CPlayerComponent::ProcessEvent(SEntityEvent& event)
 	}
 }
 
+void CPlayerComponent::InitializeAttachements()
+{
+	if (ICharacterInstance *pCharacter = m_pAnimationComponent->GetCharacter())
+	{
+
+		auto *pTorchtAttachment = pCharacter->GetIAttachmentManager()->GetInterfaceByName("torch");
+		if (pTorchtAttachment != nullptr)
+		{
+			SEntitySpawnParams spawnParams;
+			spawnParams.pClass = gEnv->pEntitySystem->GetClassRegistry()->GetDefaultClass();
+
+			// Spawn the entity
+			if (pTorchEntity = gEnv->pEntitySystem->SpawnEntity(spawnParams))
+			{
+				pTorch = pTorchEntity->CreateComponentClass<CTorchComponent>();
+
+				EntityId torchId = pTorchEntity->GetId();
+				CEntityAttachment* pTorchEntAttachment = new CEntityAttachment();
+
+				pTorchEntAttachment->SetEntityId(torchId);
+				pTorchtAttachment->AddBinding(pTorchEntAttachment);
+
+				pTorch->m_color.m_color = ColorF(1.0f, 0.75f, 0.25f);
+				pTorch->m_color.m_diffuseMultiplier = 0.2f;
+				pTorch->m_animations.m_style = 34;
+				pTorch->m_animations.m_speed = 0.2;
+				pTorch->m_radius = 6.0f;
+			}
+		}
+	}
+}
+
+
 void CPlayerComponent::UpdateMovementRequest(float frameTime)
 {
-	// Don't handle input if we are in air
-	if (!m_pCharacterController->IsOnGround())
-		return;
-
-	Vec3 velocity = ZERO;
-
-	float moveSpeed = gEnv->pConsole->GetCVar("g_WalkingSpeed")->GetFVal();
-	float crouchSpeed = 10.0f;
-	m_moving = false;
-
-	if (m_inputFlags & (TInputFlags)EInputFlag::Crouch)
-	{
-		m_crouchPress = true;
-		//moveSpeed = 10.0f;
-	}
-	else
-	{
-		m_crouchPress = false;
-	}
-
-	if (m_inputFlags & (TInputFlags)EInputFlag::WeaponDrawn)
-	{
-		m_isWeaponDrawn = true;
-		if (ICharacterInstance *pCharacter = m_pAnimationComponent->GetCharacter())
-		{
-			auto *pBarrelOutAttachment = pCharacter->GetIAttachmentManager()->GetInterfaceByName("weapon");
-			pBarrelOutAttachment->HideAttachment(0);
-		}
-	}
-	else
-	{
-		if (ICharacterInstance *pCharacter = m_pAnimationComponent->GetCharacter())
-		{
-			auto *pBarrelOutAttachment = pCharacter->GetIAttachmentManager()->GetInterfaceByName("weapon");
-			pBarrelOutAttachment->HideAttachment(1);
-		}
-		m_isWeaponDrawn = false;
-	}
-
-	if (m_inputFlags & (TInputFlags)EInputFlag::MoveLeft && m_State != EPlayerState::ePS_Interuptable)
-	{
-		m_moving = true;
-		if (m_crouchPress)
-		{
-			velocity.x -= crouchSpeed * frameTime;
-		}
-		else
-		{
-			velocity.x -= moveSpeed * frameTime;
-			
-		}
-	}
-	if (m_inputFlags & (TInputFlags)EInputFlag::MoveRight && m_State != EPlayerState::ePS_Interuptable)
-	{
-		m_moving = true;
-		if (m_crouchPress)
-		{
-			velocity.x += crouchSpeed * frameTime;
-		}
-		else
-		{
-			velocity.x += moveSpeed * frameTime;
-		}
-	}
-	if (m_inputFlags & (TInputFlags)EInputFlag::MoveForward && m_State != EPlayerState::ePS_Interuptable)
-	{
-		m_moving = true;
-		if (m_crouchPress)
-		{
-			velocity.y += crouchSpeed * frameTime;
-		}
-		else
-		{
-			velocity.y += moveSpeed * frameTime;
-		}
-	}
-	if (m_inputFlags & (TInputFlags)EInputFlag::MoveBack && m_State != EPlayerState::ePS_Interuptable)
-	{
-		m_moving = true;
-		if (m_crouchPress)
-		{
-			velocity.y -= crouchSpeed * frameTime;
-		}
-		else
-		{
-			velocity.y -= moveSpeed * frameTime;
-		}
-	}
-
-	m_pCharacterController->AddVelocity(GetEntity()->GetWorldRotation() * velocity);
+	InitializeMovement(frameTime);
 }
 
 void CPlayerComponent::UpdateLookDirectionRequest(float frameTime)
@@ -1008,6 +604,8 @@ void CPlayerComponent::RayCast(Vec3 origin, Quat dir, IEntity & pSkipEntity)
 	}
 
 }
+
+
 
 void CPlayerComponent::SpawnAtSpawnPoint()
 {

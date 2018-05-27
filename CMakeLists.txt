@@ -1,4 +1,7 @@
 cmake_minimum_required (VERSION 3.6.2)
+if(${CMAKE_GENERATOR} MATCHES "^Visual Studio")
+	ADD_DEFINITIONS("/ZI")
+endif()
 set(CRYENGINE_DIR "C:/Program Files (x86)/Crytek/CRYENGINE Launcher/Crytek/CRYENGINE_5.4")
 set(TOOLS_CMAKE_DIR "${CRYENGINE_DIR}/Tools/CMake")
 
@@ -23,11 +26,20 @@ add_sources("Code_uber.cpp"
 		"StdAfx.h"
 		"UserSettings.h"
 )
+add_sources("Attachments_uber.cpp"
+    PROJECTS Game
+    SOURCE_GROUP "Attachments"
+		"Attachments/Torch.cpp"
+		"Attachments/Torch.h"
+)
 add_sources("Components_uber.cpp"
     PROJECTS Game
     SOURCE_GROUP "Components"
 		"Components/DestroyableComponent.cpp"
 		"Components/Player.cpp"
+		"Components/PlayerInput.cpp"
+		"Components/PlayerMovement.cpp"
+		"Components/PlayerUpdate.cpp"
 		"Components/SpawnPoint.cpp"
 		"Components/Bullet.h"
 		"Components/DestroyableComponent.h"
