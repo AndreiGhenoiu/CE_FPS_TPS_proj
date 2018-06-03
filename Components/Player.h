@@ -14,6 +14,7 @@
 #include <DefaultComponents/Input/InputComponent.h>
 
 #include "../Attachments/Torch.h"
+#include "../Attachments/Flashlight.h"
 
 ////////////////////////////////////////////////////////
 // Represents a player participating in gameplay
@@ -195,4 +196,6 @@ protected:
 
 	CTorchComponent* pTorch;
 	IEntity* pTorchEntity;
+	CFlashlightComponent* pFlashlight;
+	IEntity* pFlashlightEntity;
 };

@@ -183,7 +183,7 @@ void CPlayerComponent::InitializeAttachements()
 			SEntitySpawnParams spawnParams;
 			spawnParams.pClass = gEnv->pEntitySystem->GetClassRegistry()->GetDefaultClass();
 
-			// Spawn the entity
+			// Spawn the torch
 			if (pTorchEntity = gEnv->pEntitySystem->SpawnEntity(spawnParams))
 			{
 				pTorch = pTorchEntity->CreateComponentClass<CTorchComponent>();
@@ -201,6 +201,29 @@ void CPlayerComponent::InitializeAttachements()
 				pTorch->m_radius = 6.0f;
 			}
 		}
+
+		auto *pFlashlightAttachment = pCharacter->GetIAttachmentManager()->GetInterfaceByName("flashlight");
+		if (pFlashlightAttachment != nullptr)
+		{
+			SEntitySpawnParams spawnParams;
+			spawnParams.pClass = gEnv->pEntitySystem->GetClassRegistry()->GetDefaultClass();
+
+			//Spawn the flashlight
+			if (pFlashlightEntity = gEnv->pEntitySystem->SpawnEntity(spawnParams))
+			{
+				pFlashlight = pFlashlightEntity->CreateComponentClass<CFlashlightComponent>();
+
+				EntityId flashlightId = pFlashlightEntity->GetId();
+				CEntityAttachment* pFlashlightEntAttachment = new CEntityAttachment();
+
+				pFlashlightEntAttachment->SetEntityId(flashlightId);
+				pFlashlightAttachment->AddBinding(pFlashlightEntAttachment);
+
+				pFlashlight->m_bActive = false;
+			}
+
+		}
+
 	}
 }
 
@@ -237,6 +260,28 @@ void CPlayerComponent::UpdateLookDirectionRequest(float frameTime)
 	ypr.z = 0;
 
 	m_lookOrientation = Quat(CCamera::CreateOrientationYPR(ypr));
+
+	if (pFlashlight->IsEnabled())
+	{
+		Vec3 vDir = m_lookOrientation.GetColumn1();
+
+		Quat currentFlashlightOrientation = Quat(pFlashlight->GetLocalTM());
+
+		Ang3 ypr_current = CCamera::CreateAnglesYPR(Matrix33(currentFlashlightOrientation));
+
+		Quat targetFlashlightOrientation = Quat::CreateRotationVDir(vDir);
+
+		Ang3 ypr_target = CCamera::CreateAnglesYPR(Matrix33(targetFlashlightOrientation));
+
+		ypr_target.x = ypr_current.x;
+		ypr_target.z = ypr_current.z;
+		ypr_target.y *= -1.f;
+
+		targetFlashlightOrientation = Quat(CCamera::CreateOrientationYPR(ypr_target));
+
+		pFlashlight->SetLocalOrientation(targetFlashlightOrientation);
+
+	}
 
 	// Reset the mouse delta accumulator every frame
 	m_mouseDeltaRotation = ZERO;
