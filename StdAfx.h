@@ -10,3 +10,4 @@
 #include <CrySystem/ISystem.h>
 #include <Cry3DEngine/I3DEngine.h>
 #include <CryNetwork/ISerialize.h>
+#include <CryEntitySystem/IEntityComponent.h>

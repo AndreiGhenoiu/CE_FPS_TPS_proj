@@ -5,23 +5,28 @@
 #include <CryEntitySystem/IEntityClass.h>
 #include <CryNetwork/INetwork.h>
 #include "UserSettings.h"
+#include "Components/Player.h"
 
 class CPlayerComponent;
 
 // The entry-point of the application
 // An instance of CGamePlugin is automatically created when the library is loaded
 // We then construct the local player entity and CPlayerComponent instance when OnClientConnectionReceived is first called.
-class CGamePlugin 
+class CGamePlugin
 	: public ICryPlugin
 	, public ISystemEventListener
 	, public INetworkedClientListener
 {
 public:
-	CRYINTERFACE_SIMPLE(ICryPlugin)
-	CRYGENERATE_SINGLETONCLASS_GUID(CGamePlugin, "Game_Blank", "{0900F201-49F3-4B3C-81D1-0C91CF3C8FDA}"_cry_guid)
+	CRYINTERFACE_BEGIN()
+		CRYINTERFACE_ADD(ICryPlugin)
+		CRYINTERFACE_ADD(CGamePlugin)
+		CRYINTERFACE_END()
+		CRYGENERATE_SINGLETONCLASS_GUID(CGamePlugin, "TutoringGame", "{F27F0F25-09FF-4292-8CE6-BB9C99996ABE}"_cry_guid)
+		CRYINTERFACE_DECLARE_GUID(CGamePlugin, "{F27F0F25-09FF-4292-8CE6-BB9C99996ABE}"_cry_guid)
 
-	virtual ~CGamePlugin();
-	
+		virtual ~CGamePlugin();
+
 	// ICryPlugin
 	virtual const char* GetName() const override { return "GamePlugin"; }
 	virtual const char* GetCategory() const override { return "Game"; }
@@ -50,8 +55,10 @@ public:
 	virtual bool OnClientTimingOut(int channelId, EDisconnectionCause cause, const char* description) override { return true; }
 	// ~INetworkedClientListener
 
-protected:
+
 	// Map containing player components, key is the channel id received in OnClientConnectionReceived
 	std::unordered_map<int, EntityId> m_players;
 	CUserSettings* m_pUserSettings;
+	CPlayerComponent* m_pPlayer;
 };
+

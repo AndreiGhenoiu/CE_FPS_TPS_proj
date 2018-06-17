@@ -29,7 +29,9 @@ add_sources("Code_uber.cpp"
 add_sources("Attachments_uber.cpp"
     PROJECTS Game
     SOURCE_GROUP "Attachments"
+		"Attachments/Flashlight.cpp"
 		"Attachments/Torch.cpp"
+		"Attachments/Flashlight.h"
 		"Attachments/Torch.h"
 )
 add_sources("Components_uber.cpp"
@@ -41,10 +43,14 @@ add_sources("Components_uber.cpp"
 		"Components/PlayerMovement.cpp"
 		"Components/PlayerUpdate.cpp"
 		"Components/SpawnPoint.cpp"
+		"Components/SurveillanceCamera.cpp"
+		"Components/SurveillanceComponent.cpp"
 		"Components/Bullet.h"
 		"Components/DestroyableComponent.h"
 		"Components/Player.h"
 		"Components/SpawnPoint.h"
+		"Components/SurveillanceCamera.h"
+		"Components/SurveillanceComponent.h"
 )
 
 end_sources()

@@ -8,6 +8,7 @@
 
 void CPlayerComponent::Initialize()
 {
+	
 	// Create the camera component, will automatically update the viewport every frame
 	m_pCameraComponent = m_pEntity->GetOrCreateComponent<Cry::DefaultComponents::CCameraComponent>();
 	
@@ -220,6 +221,8 @@ void CPlayerComponent::InitializeAttachements()
 				pFlashlightAttachment->AddBinding(pFlashlightEntAttachment);
 
 				pFlashlight->m_bActive = false;
+				pFlashlight->m_color.m_diffuseMultiplier = 3.f;
+				pFlashlight->m_options.m_attenuationBulbSize = 1.f;
 			}
 
 		}

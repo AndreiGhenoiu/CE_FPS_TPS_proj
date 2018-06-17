@@ -60,8 +60,10 @@ void CGamePlugin::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lp
 					)
 			);
 		}
+
+
 	}break;
-		// Called when the game framework has initialized and we are ready for game logic to start
+	// Called when the game framework has initialized and we are ready for game logic to start
 	case ESYSTEM_EVENT_GAME_POST_INIT:
 	{
 		// Don't need to load the map in editor
@@ -74,6 +76,7 @@ void CGamePlugin::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lp
 			m_pUserSettings = new CUserSettings();
 			m_pUserSettings->RegisterCVars();
 		}
+
 	}
 	break;
 	}
@@ -86,7 +89,7 @@ bool CGamePlugin::OnClientConnectionReceived(int channelId, bool bIsReset)
 	spawnParams.pClass = gEnv->pEntitySystem->GetClassRegistry()->GetDefaultClass();
 	spawnParams.sName = "Player";
 	spawnParams.nFlags |= ENTITY_FLAG_NEVER_NETWORK_STATIC;
-	
+
 	// Set local player details
 	if (m_players.size() == 0 && !gEnv->IsDedicated())
 	{
@@ -119,9 +122,9 @@ bool CGamePlugin::OnClientReadyForGameplay(int channelId, bool bIsReset)
 	{
 		if (IEntity* pPlayerEntity = gEnv->pEntitySystem->GetEntity(it->second))
 		{
-			if (CPlayerComponent* pPlayer = pPlayerEntity->GetComponent<CPlayerComponent>())
+			if (m_pPlayer = pPlayerEntity->GetComponent<CPlayerComponent>())
 			{
-				pPlayer->Revive();
+				m_pPlayer->Revive();
 			}
 		}
 	}
